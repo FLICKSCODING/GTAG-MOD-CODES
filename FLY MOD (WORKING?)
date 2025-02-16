@@ -1,0 +1,21 @@
+using UnityEngine;
+
+public class FlyMod : FLICKSCODES
+{
+    private CharacterController characterController;
+    public float flySpeed = 10f;
+
+    void Start()
+    {
+        characterController = GetComponent<CharacterController>();
+    }
+
+    void Update()
+    {
+        if (ControllerInputPoller.instance.leftGrab)) // Press 'left grip' to fly
+        {
+            Vector3 flyDirection = new Vector3(0, flySpeed * Time.deltaTime, 0);
+            characterController.Move(flyDirection);
+        }
+    }
+}
