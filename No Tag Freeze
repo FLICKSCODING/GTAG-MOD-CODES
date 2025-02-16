@@ -1,0 +1,17 @@
+// Made and Created by FLICK
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class NoTagFreeze : MonoBehaviour
+{
+    void Start()
+    {
+
+    }
+
+    void Update()
+    {
+        GorillaLocomotion.Player.Instance.disableMovement = false;
+    }
+}
