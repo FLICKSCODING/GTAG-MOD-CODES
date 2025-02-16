@@ -1,0 +1,58 @@
+[Header("MADE BY FLICK, DO NOT SKID!!")]
+using UnityEngine;
+using System.Collections;
+
+public class BigMonkey : MonoBehaviour
+{
+    public float scaleMultiplier = 5f; // Scale factor to make the gorilla bigger
+    public float movementSpeed = 6f;
+    public float jumpForce = 10f;
+
+    private Transform playerTransform;
+    private CharacterController characterController;
+    private Vector3 moveDirection;
+    private float verticalVelocity;
+
+    private void Start()
+    {
+        playerTransform = GetComponent<Transform>();
+        characterController = GetComponent<CharacterController>();
+
+        // Set the initial scale of the gorilla
+        playerTransform.localScale *= scaleMultiplier;
+    }
+
+    private void Update()
+    {
+        HandleMovement();
+
+        // Additional behavior specific to the "big monkey"
+        // For example, you can add special abilities or interactions here.
+    }
+
+    private void HandleMovement()
+    {
+        float horizontalInput = Input.GetAxis("Horizontal");
+        float verticalInput = Input.GetAxis("Vertical");
+
+        if (characterController.isGrounded)
+        {
+            verticalVelocity = -0.5f;
+
+            if (Input.GetButtonDown("Jump"))
+            {
+                verticalVelocity = jumpForce;
+            }
+        }
+        else
+        {
+            verticalVelocity -= 9.81f * Time.deltaTime;
+        }
+
+        moveDirection = new Vector3(horizontalInput, verticalVelocity, verticalInput);
+        moveDirection = transform.TransformDirection(moveDirection);
+        moveDirection *= movementSpeed;
+
+        characterController.Move(moveDirection * Time.deltaTime);
+    }
+}
