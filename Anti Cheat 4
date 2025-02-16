@@ -3,3 +3,28 @@
 -------------------------------
 // GIVE ME CREDITS DONT SKID
 // NOT NICE
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using UnityEngine;
+
+public class NetworkLog : MonoBehaviour
+{
+    // Start is called before the first frame update
+    void Start()
+    {
+        CheckForModsFolder();
+    }
+
+    // Update is called once per frame
+    void CheckForModsFolder()
+    {
+        string modsFolderPath = Path.Combine(Application.persistentDataPath, "Mods");
+
+        if (Directory.Exists(modsFolderPath))
+        {
+            Debug.LogError("Mods Folder Detected. Exiting Application.");
+            Application.Quit();
+        }
+    }
+}
