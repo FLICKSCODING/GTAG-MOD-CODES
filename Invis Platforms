@@ -1,0 +1,43 @@
+// Made and Created by FLICK
+public static void InvisPlatformsMod()
+{
+    if (ControllerInputPoller.instance.rightGrab)
+    {
+        SpawnCube(GorillaLocomotion.Player.Instance.rightControllerTransform, Color.clear);
+    }
+    else
+    {
+        DestroyCube(GorillaLocomotion.Player.Instance.rightControllerTransform);
+    }
+
+    if (ControllerInputPoller.instance.leftGrab)
+    {
+        SpawnCube(GorillaLocomotion.Player.Instance.leftControllerTransform, Color.clear);
+    }
+    else
+    {
+        DestroyCube(GorillaLocomotion.Player.Instance.leftControllerTransform);
+    }
+}
+
+private static void SpawnCube(Transform controller, Color cubeColor)
+{
+    GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+    cube.transform.position = controller.position;
+    cube.transform.localScale = new UnityEngine.Vector3(0.3f, 0.3f, 0.3f);
+    cube.GetComponent<Renderer>().material.color = cubeColor;
+    cube.transform.Translate(UnityEngine.Vector3.down * 0.1f);
+}
+
+private static void DestroyCube(Transform controller)
+{
+    Collider[] colliders = Physics.OverlapSphere(controller.position, 0.5f);
+    foreach (Collider collider in colliders)
+    {
+        if (collider.gameObject.CompareTag("CubeTag"))
+        {
+            UnityEngine.Object.Destroy(collider.gameObject);
+            break;
+        }
+    }
+}
