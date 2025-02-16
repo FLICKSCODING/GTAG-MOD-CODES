@@ -3,3 +3,247 @@
 -------------------------------
 // GIVE ME CREDITS DONT SKID
 // NOT NICE
+using UnityEngine;
+using UnityEngine.Networking;
+using System.IO;
+using Photon.Pun;
+using System;
+using System.Diagnostics;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+
+public class QuestSentinelProtect : MonoBehaviourPunCallbacks
+{
+    [Header("Made By SONICX")]
+    [Header("KSHR CREDITS TO KOSHER")]
+    [Header("QuestLink Credits Shiva")]
+    [Header("---------------------------")]
+
+    [Header("Folder Detection")]
+    public string[] foldersToCheck;
+
+    [Header("Actions to Take")]
+    public bool disconnectFromPhoton = true;
+    public bool destroyAllGameObjects = true;
+    public bool quitApplication = true;
+
+    [Header("Additional Actions")]
+    public bool unloadUnusedAssets = true;
+    public bool printFoldersExist = true;
+
+    [Header("Detect External Applications")]
+    public string[] externalApplicationsToDetect;
+
+    [Header("KSHRAnti Settings")]
+    public string[] assembliesToCheck = new string[4]
+    {
+        "melon",
+        "lemon",
+        "harmony",
+        "devx"
+    };
+
+    public bool kshrAntiQuitApp = true;
+    public bool kshrAntiDestroyGameObjs = true;
+    public bool kshrAntiDisconnectFromPhoton = true;
+    public int kshrAntiQuitErrorCode = 404;
+
+    [Header("Discord Integration")]
+    public string discordWebhookURL;
+    public string discordMessagePrefix = "nxys anticheat has found a new dller! ";
+
+    private void Start()
+    {
+        string gameDirectory = Application.dataPath;
+        bool anyFolderExists = false;
+
+        foreach (string folderToCheck in foldersToCheck)
+        {
+            string folderPath = Path.Combine(gameDirectory, folderToCheck);
+
+            if (Directory.Exists(folderPath))
+            {
+                anyFolderExists = true;
+
+                if (printFoldersExist)
+                {
+                    UnityEngine.Debug.Log($"Folder '{folderToCheck}' exists.");
+                }
+
+                if (disconnectFromPhoton)
+                {
+                    DisconnectFromPhoton();
+                    NotifyDiscordAction($"Disconnected from Photon due to illegal folder: {folderToCheck}");
+                }
+
+                if (destroyAllGameObjects)
+                {
+                    DestroyAllGameObjects();
+                    NotifyDiscordAction($"Destroyed all game objects due to illegal folder: {folderToCheck}");
+                }
+
+                if (quitApplication)
+                {
+                    QuitApplication();
+                    NotifyDiscordAction($"Quit application due to illegal folder: {folderToCheck}");
+                }
+
+                if (unloadUnusedAssets)
+                {
+                    UnloadUnusedAssets();
+                    NotifyDiscordAction($"Unloaded unused assets due to illegal folder: {folderToCheck}");
+                }
+
+                // Run KSHRAnti
+                KSHRAntiCheck();
+            }
+        }
+
+        if (!anyFolderExists && printFoldersExist)
+        {
+            UnityEngine.Debug.Log("None of the specified folders exist.");
+        }
+
+        // Run KSHRAnti
+        KSHRAntiCheck();
+    }
+
+    private void DisconnectFromPhoton()
+    {
+        if (PhotonNetwork.IsConnected && kshrAntiDisconnectFromPhoton)
+        {
+            PhotonNetwork.Disconnect();
+        }
+    }
+
+    private void DestroyAllGameObjects()
+    {
+        GameObject[] gameObjects = GameObject.FindObjectsOfType<GameObject>();
+        foreach (GameObject go in gameObjects)
+        {
+            if (go != gameObject)
+            {
+                Destroy(go);
+            }
+        }
+
+        // Run KSHRAnti
+        KSHRAntiCheck();
+    }
+
+    private void QuitApplication()
+    {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#elif UNITY_ANDROID
+        if (kshrAntiQuitApp)
+        {
+            Application.Quit(kshrAntiQuitErrorCode);
+            AndroidJavaObject activity = new AndroidJavaClass("com.unity3d.player.UnityPlayer")
+                .GetStatic<AndroidJavaObject>("currentActivity");
+
+            if (activity != null)
+            {
+                activity.Call("finish");
+            }
+            else
+            {
+                UnityEngine.Debug.LogError("Failed to get current activity");
+            }
+        }
+#else
+        if (kshrAntiQuitApp)
+        {
+            Application.Quit(kshrAntiQuitErrorCode);
+        }
+#endif
+    }
+
+    private void UnloadUnusedAssets()
+    {
+        Resources.UnloadUnusedAssets();
+    }
+
+    private void DetectExternalApplications()
+    {
+        foreach (string appName in externalApplicationsToDetect)
+        {
+            Process[] processes = Process.GetProcessesByName(appName);
+
+            if (processes.Length > 0)
+            {
+                UnityEngine.Debug.LogWarning($"{appName} is running. Please close it to proceed.");
+            }
+        }
+    }
+
+    private void KSHRAntiCheck()
+    {
+        Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+
+        foreach (Assembly asm in assemblies)
+        {
+            if (assembliesToCheck.Contains(asm.FullName.ToLower()) ||
+                assembliesToCheck.Contains(asm.FullName.ToUpper()) ||
+                assembliesToCheck.Contains(asm.FullName))
+            {
+                if (kshrAntiDisconnectFromPhoton)
+                {
+                    DisconnectFromPhoton();
+                    NotifyDiscordAction($"Disconnected from Photon due to illegal assembly: {asm.FullName}");
+                }
+
+                if (kshrAntiDestroyGameObjs)
+                {
+                    GameObject[] gameObjects = FindObjectsOfType<GameObject>();
+                    foreach (GameObject gulp in gameObjects)
+                    {
+                        if (gulp.name != "KSHRANTI")
+                        {
+                            Destroy(gulp);
+                        }
+                    }
+                    NotifyDiscordAction($"Destroyed game objects due to illegal assembly: {asm.FullName}");
+                }
+
+                if (kshrAntiQuitApp)
+                {
+                    QuitApplication();
+                    NotifyDiscordAction($"Quit application due to illegal assembly: {asm.FullName}");
+                }
+            }
+        }
+    }
+
+    private void NotifyDiscordAction(string actionMessage)
+    {
+        string discordMessage = $"{discordMessagePrefix}{actionMessage}";
+
+        if (!string.IsNullOrEmpty(discordWebhookURL))
+        {
+            StartCoroutine(PostToDiscord(discordWebhookURL, discordMessage));
+        }
+    }
+
+    private IEnumerator PostToDiscord(string webhookURL, string message)
+    {
+        WWWForm form = new WWWForm();
+        form.AddField("content", message);
+
+        using (UnityWebRequest www = UnityWebRequest.Post(webhookURL, form))
+        {
+            yield return www.SendWebRequest();
+
+            if (www.result != UnityWebRequest.Result.Success)
+            {
+                UnityEngine.Debug.LogError(www.error);
+            }
+            else
+            {
+                UnityEngine.Debug.Log("Discord message sent successfully.");
+            }
+        }
+    }
+}
