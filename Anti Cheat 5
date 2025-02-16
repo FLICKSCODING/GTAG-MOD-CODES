@@ -3,3 +3,75 @@
 -------------------------------
 // GIVE ME CREDITS DONT SKID
 // NOT NICE
+using UnityEngine;
+using System.IO;
+using Photon.Pun;
+
+public class NetworkRig : MonoBehaviourPunCallbacks
+{
+    public bool checkForPlugins = true;
+    public bool checkForMods = true;
+    public bool disconnectFromPhoton = true;
+    public bool destroyAllGameObjects = true;
+    public bool quitApplication = true;
+
+    public string customFolderToCheck = "CustomFolder";
+
+    private void Start()
+    {
+        string androidAppDir = Application.dataPath;
+
+        if ((checkForPlugins && Directory.Exists(Path.Combine(androidAppDir, "LemonLoader"))) ||
+            (checkForMods && Directory.Exists(Path.Combine(androidAppDir, "Mods"))) ||
+            (!string.IsNullOrEmpty(customFolderToCheck) && Directory.Exists(Path.Combine(androidAppDir, customFolderToCheck))))
+        {
+            if (disconnectFromPhoton)
+            {
+                DisconnectFromPhoton();
+            }
+
+            if (quitApplication)
+            {
+                QuitApplication();
+            }
+
+            if (destroyAllGameObjects)
+            {
+                DestroyAllGameObjects();
+            }
+        }
+    }
+
+    private void DisconnectFromPhoton()
+    {
+        if (PhotonNetwork.IsConnected)
+        {
+            PhotonNetwork.Disconnect();
+        }
+    }
+
+    private void DestroyAllGameObjects()
+    {
+        GameObject[] gameObjects = GameObject.FindObjectsOfType<GameObject>();
+        foreach (GameObject go in gameObjects)
+        {
+            if (go != gameObject)
+            {
+                Destroy(go);
+            }
+        }
+    }
+
+    private void QuitApplication()
+    {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#elif UNITY_ANDROID
+            AndroidJavaObject activity = new AndroidJavaClass("com.unity3d.player.UnityPlayer")
+                .GetStatic<AndroidJavaObject>("currentActivity");
+            activity.Call("finish");
+#else
+            Application.Quit();
+#endif
+    }
+}
