@@ -1,0 +1,60 @@
+// Made and Created by FLICK
+using System;
+using System.Collections.Generic;
+using System.Text;
+using UnityEngine;
+
+namespace Mellows_OP_Menu.Mods
+{
+    internal class PlatForms
+    {
+      
+     private static GameObject Rplat = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        private static GameObject Lplat = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        private static bool IsNotHoldingR;
+        private static bool IsSpawnedR;
+        private static bool IsNotHoldingL;
+        private static bool IsSpawnedL;
+        public static void PlatFormsMod()
+        {
+
+            if (ControllerInputPoller.instance.rightGrab)
+            {
+                if (!IsNotHoldingR && !IsSpawnedR)
+                {
+                    Rplat.transform.position = GorillaLocomotion.Player.Instance.rightControllerTransform.transform.position;
+                    IsSpawnedR = true;
+                }
+                IsNotHoldingR = false;
+                Rplat.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
+                Rplat.AddComponent<BoxCollider>();
+            }
+            else if (!ControllerInputPoller.instance.rightGrab)
+            {
+                Rplat.transform.position = new Vector3(0, 100, 0);
+                IsNotHoldingR = true;
+                IsSpawnedR = false;
+            }
+
+            if (ControllerInputPoller.instance.leftGrab)
+            {
+                if (!IsNotHoldingL && !IsSpawnedL)
+                {
+                    Lplat.transform.position = GorillaLocomotion.Player.Instance.leftControllerTransform.transform.position;
+                    IsSpawnedL = true;
+                }
+                IsNotHoldingL = false;
+                Lplat.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
+                Lplat.AddComponent<BoxCollider>();
+                Lplat.transform.position = GorillaLocomotion.Player.Instance.leftControllerTransform.transform.position;
+            }
+            else if (!ControllerInputPoller.instance.leftGrab)
+            {
+                Lplat.transform.position = new Vector3(0, 100, 0);
+                IsNotHoldingL = true;
+                IsSpawnedL = false;
+            }
+        }
+
+    }
+}
