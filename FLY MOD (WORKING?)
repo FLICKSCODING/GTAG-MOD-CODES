@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class FlyMod : FLICKSCODES
+public class FlyMod : Monobehavior
 {
     private CharacterController characterController;
     public float flySpeed = 10f;
