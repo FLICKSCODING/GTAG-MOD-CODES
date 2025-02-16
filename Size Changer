@@ -1,0 +1,17 @@
+Made By FLICK DONT SKID
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class SizeChanger : MonoBehaviour
+{
+    public GameObject Player;
+    public GameObject size;
+
+    private void OnTriggerEnter(Collider other)
+    {
+        Player.transform.localScale = size.transform.localScale;
+    }
+
+
+}
