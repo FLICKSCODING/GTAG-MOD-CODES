@@ -1,0 +1,408 @@
+// Made and Created by FLICK
+// Love it because I got 6 more
+-------------------------------
+// GIVE ME CREDITS DONT SKID
+// NOT NICE
+using System;
+using System.Net.Http;
+using System.Text;
+using System.Threading.Tasks;
+using UnityEngine;
+using Photon.Pun;
+using System.IO;
+using System.Collections.Generic;
+
+public class PhotonTrigger : MonoBehaviour
+{
+    [Header("Hydra Private AntiCheat")]
+    [Header("Version 1.0.3")]
+    public bool quitGame;
+    public bool sendToWebhook;
+    public string discordWebhook;
+    public bool detectModsFolder;
+    public bool detectModsInfection;
+    public bool detectBasicMods;
+    public bool detectCanvas;
+    public GameObject[] modsNoInfection;
+    [Header("TEST")]
+    public bool testSend;
+    [Header("Anti Mods Stuff")]
+    [Header("------------------------------------------------------")]
+    public float maxLength = 1.0f;
+    public float maxArmLength = 1.5f;
+    public float maxJumpBoost = 8.5f;
+    public float maxJumpMultiplier = 1.3f;
+    public string nameToChangeTo;
+    [Header("------------------------------------------------------")]
+    private GameObject turnParent;
+    
+
+    private GameObject mainCamera;
+    private bool hasSent = false;
+    private bool hasSent2 = false;
+    private bool hasSent3 = false;
+    private string detectionReason;
+
+    private void Update()
+    {
+       if (detectCanvas)
+       {
+        CheckForCanvas();
+       }
+
+       if (detectBasicMods)
+       {
+        CheckForModsHappening();
+       }
+
+       if (detectModsInfection)
+       {
+        ModsActiveInInfection();
+       }
+
+       if (detectModsFolder)
+       {
+          CheckForModsFolderV1();
+          CheckForModsFolderV2();
+       }
+
+        if (testSend && PhotonNetwork.InRoom)
+        {
+            AntiCheatHandlerDLL();
+            testSend = false;
+        }
+    }
+
+    private void CheckForModsFolderV1()
+    {
+        string modsFolderPath = Path.Combine(Application.persistentDataPath, "Mods");
+
+        if (Directory.Exists(modsFolderPath))
+        {
+            AntiCheatHandlerDLL();
+        }
+    }
+
+    private void CheckForModsFolderV2()
+    {
+        string androidAppDir = Application.dataPath;
+
+        if (Directory.Exists(Path.Combine(androidAppDir, "Mods")))
+        {
+            AntiCheatHandlerDLL();
+        }
+    }
+
+    private void CheckForCanvas()
+    {
+        GameObject mainCamera = GameObject.Find("Main Camera");
+
+        if (mainCamera != null)
+        {
+            Canvas[] canvases = mainCamera.GetComponentsInChildren<Canvas>();
+
+            foreach (Canvas canvas in canvases)
+            {
+                AntiCheatHandlerDLL();
+            }
+        }
+    }
+
+    private void CheckForModsHappening()
+    {
+        if (GorillaLocomotion.Player.Instance.maxArmLength > maxArmLength)
+        {
+            GorillaLocomotion.Player.Instance.maxArmLength = 1.5f;
+            AntiCheatHandlerMODDING();
+        }
+
+        if (GorillaLocomotion.Player.Instance.maxJumpSpeed > maxJumpBoost)
+        {
+            GorillaLocomotion.Player.Instance.maxJumpSpeed = 6.5f;
+            AntiCheatHandlerMODDING();
+        }
+
+        if (GorillaLocomotion.Player.Instance.jumpMultiplier > maxJumpMultiplier)
+        {
+            GorillaLocomotion.Player.Instance.jumpMultiplier = 1.2f;
+            AntiCheatHandlerMODDING();
+        }
+
+        if ((PhotonNetwork.LocalPlayer.NickName.Contains(" ") || PhotonNetwork.LocalPlayer.NickName.Length > 12))
+        {
+            PhotonNetwork.NickName = nameToChangeTo;
+            PhotonNetwork.LocalPlayer.NickName = nameToChangeTo;
+            PlayerPrefs.Save();
+            AntiCheatHandlerMODDING();
+        }
+
+        GameObject turnParent = GameObject.Find("TurnParent");
+
+        Vector3 targetPosition = turnParent.transform.position;
+
+        if (Mathf.Abs(targetPosition.x) > maxLength || Mathf.Abs(targetPosition.y) > maxLength || Mathf.Abs(targetPosition.z) > maxLength)
+        {
+            turnParent.transform.localScale = new Vector3(1f, 1f, 1f);
+            AntiCheatHandlerMODDING();
+        }
+
+    }
+
+    private void ModsActiveInInfection()
+    {
+        foreach (GameObject obj in modsNoInfection)
+        {
+            if (obj.activeSelf)
+            {
+                AntiCheatHandlerINFECTION();
+            }
+        }
+    }
+
+
+private string ReturnModsHappening()
+{
+    string detectionReason = "";
+
+    if (GorillaLocomotion.Player.Instance.maxArmLength > maxArmLength)
+    {
+        GorillaLocomotion.Player.Instance.maxArmLength = 1.5f;
+        detectionReason = "Max Arm Length Is Greater Than Max Arm Length";
+    }
+
+    if (GorillaLocomotion.Player.Instance.maxJumpSpeed > maxJumpBoost)
+    {
+        GorillaLocomotion.Player.Instance.maxJumpSpeed = 6.5f;
+        detectionReason = "Max Jump Speed Is Higher Than Max Jump Boost";
+    }
+
+    if (GorillaLocomotion.Player.Instance.jumpMultiplier > maxJumpMultiplier)
+    {
+        GorillaLocomotion.Player.Instance.jumpMultiplier = 1.2f;
+        detectionReason = "Jump Multiplier Is Higher Than Max Jump Multiplier";
+    }
+
+    if ((PhotonNetwork.LocalPlayer.NickName.Contains(" ") || PhotonNetwork.LocalPlayer.NickName.Length > 12))
+    {
+        PhotonNetwork.NickName = nameToChangeTo;
+        PhotonNetwork.LocalPlayer.NickName = nameToChangeTo;
+        PlayerPrefs.Save();
+        detectionReason = "Used A Space In Their Name Or Name Is Greater Than 12";
+    }
+
+    GameObject turnParent = GameObject.Find("TurnParent");
+
+    Vector3 targetPosition = turnParent.transform.position;
+
+    if (Mathf.Abs(targetPosition.x) > maxLength || Mathf.Abs(targetPosition.y) > maxLength || Mathf.Abs(targetPosition.z) > maxLength)
+    {
+        turnParent.transform.localScale = new Vector3(1f, 1f, 1f);
+        detectionReason = "Scaling Was Bigger Than Max Length";
+    }
+
+    return detectionReason;
+}
+
+
+    private void AntiCheatHandlerDLL()
+    {
+        if (quitGame)
+        {
+            Application.Quit();
+        }
+
+        if (sendToWebhook && PhotonNetwork.InRoom)
+        {
+            if (!hasSent)
+            {
+                SendDLLUser();
+                hasSent = true;
+            }
+        }
+
+        if (!PhotonNetwork.InRoom && hasSent)
+        {
+            hasSent = false;
+        }
+    }
+
+    private void AntiCheatHandlerMODDING()
+    {
+        if (quitGame)
+        {
+            Application.Quit();
+        }
+
+        if (sendToWebhook && PhotonNetwork.InRoom)
+        {
+            if (!hasSent2)
+            {
+                SendModdingUser();
+                hasSent2 = true;
+            }
+        }
+
+        if (!PhotonNetwork.InRoom && hasSent2)
+        {
+            hasSent2 = false;
+        }
+    }
+
+    private void AntiCheatHandlerINFECTION()
+    {
+        if (quitGame)
+        {
+            if (PlayerPrefs.HasKey("currentGameMode") && PlayerPrefs.GetString("currentGameMode") == "INFECTION")
+            {
+               Application.Quit();
+            }
+        }
+
+        if (sendToWebhook && PhotonNetwork.InRoom)
+        {
+            if (PlayerPrefs.HasKey("currentGameMode") && PlayerPrefs.GetString("currentGameMode") == "INFECTION")
+            {
+               if (!hasSent3)
+               {
+                  SendModUser();
+                  hasSent3 = true;
+               }
+            }
+        }
+
+        if (!PhotonNetwork.InRoom && hasSent2)
+        {
+            hasSent3 = false;
+        }
+    }
+
+    private async void SendDLLUser()
+    {
+        HttpClient client = new HttpClient();
+
+        DateTime currentTime = DateTime.Now;
+
+        string embedJson = @"
+        {
+            ""embeds"": [
+                {
+                    ""title"": ""Nxys anticheat has found a dll!"",
+                    ""description"": ""**UserName: " + PhotonNetwork.LocalPlayer.NickName + @"\nUser Id: " + PhotonNetwork.LocalPlayer.UserId + @"\nRoom Code: " + PhotonNetwork.CurrentRoom.Name + @"\nPlayers In Room: " + PhotonNetwork.CurrentRoom.PlayerCount + @"\nMaster: " + PhotonNetwork.MasterClient.NickName + @"\nIs Public?: " + PhotonNetwork.CurrentRoom.IsVisible + @"\nGameMode: " + @"\nTime: " + currentTime + " EST" + @"\n------------------------" + @"\nSIGMA FARTS" + @"\n------------------------" + @"**" + @""",
+                    ""color"": 16711680,
+                    ""image"": {
+                        ""url"": ""https://discord.com/api/webhooks/1277373004568985743/CoUy6UKvOPMXOG38aVAwZrfSXfw4BZgMVHHua9497J6vvxYtpNnS_3JHSFSoEJ-fk3LE""
+                    }
+                }
+            ]
+        }
+        ";
+
+        var content = new StringContent(embedJson, Encoding.UTF8, "application/json");
+        HttpResponseMessage response = await client.PostAsync(discordWebhook, content);
+
+        if (response.IsSuccessStatusCode)
+        {
+            Debug.Log("DLL User Sent To Webhook");
+        }
+        else
+        {
+            Debug.LogError($"Failed To Send To Webhook. Status code: {response.StatusCode}");
+        }
+
+        client.Dispose();
+    }
+
+    private List<string> FindMods()
+    {
+        List<string> detectionReasons2 = new List<string>();
+
+        foreach (GameObject obj in modsNoInfection)
+        {
+            if (obj.activeSelf)
+            {
+                detectionReasons2.Add(obj.name);
+            }
+        }
+
+        return detectionReasons2;
+    }
+
+    private async void SendModUser()
+    {
+        HttpClient client = new HttpClient();
+
+        DateTime currentTime = DateTime.Now;
+
+        List<string> modsActive = FindMods();
+
+        string modsActiveString = string.Join(", ", modsActive);
+
+        string embedJson = @"
+        {
+            ""embeds"": [
+                {
+                    ""title"": ""imagine modding dawg"",
+                    ""description"": ""**UserName: " + PhotonNetwork.LocalPlayer.NickName + @"\nUser Id: " + PhotonNetwork.LocalPlayer.UserId + @"\nRoom Code: " + PhotonNetwork.CurrentRoom.Name + @"\nPlayers In Room: " + PhotonNetwork.CurrentRoom.PlayerCount + @"\nMaster: " + PhotonNetwork.MasterClient.NickName + @"\nIs Public?: " + PhotonNetwork.CurrentRoom.IsVisible + @"\nTime: " + currentTime + " EST" + @"\n------------------------" + @"\nMODS USED IN INFECTION: " + modsActiveString + @"\nSIGMA FARTS" + @"\n------------------------" + @"**" + @""",
+                    ""color"": 16711680,
+                    ""image"": {
+                        ""url"": ""https://discord.com/api/webhooks/1277373004568985743/CoUy6UKvOPMXOG38aVAwZrfSXfw4BZgMVHHua9497J6vvxYtpNnS_3JHSFSoEJ-fk3LE""
+                    }
+                }
+            ]
+        }
+        ";
+
+        var content = new StringContent(embedJson, Encoding.UTF8, "application/json");
+        HttpResponseMessage response = await client.PostAsync(discordWebhook, content);
+
+        if (response.IsSuccessStatusCode)
+        {
+            Debug.Log("Modder Inside Infection User Sent To Webhook");
+        }
+        else
+        {
+            Debug.LogError($"Failed To Send To Webhook. Status code: {response.StatusCode}");
+        }
+
+        client.Dispose();
+    }
+
+    private async void SendModdingUser()
+    {
+        HttpClient client = new HttpClient();
+
+        DateTime currentTime = DateTime.Now;
+
+        detectionReason = ReturnModsHappening();
+
+        string embedJson = @"
+        {
+            ""embeds"": [
+                {
+                    ""title"": ""Modding Attempter Found"",
+                    ""description"": ""**UserName: " + PhotonNetwork.LocalPlayer.NickName + @"\nUser Id: " + PhotonNetwork.LocalPlayer.UserId + @"\nRoom Code: " + PhotonNetwork.CurrentRoom.Name + @"\nPlayers In Room: " + PhotonNetwork.CurrentRoom.PlayerCount + @"\nMaster: " + PhotonNetwork.MasterClient.NickName + @"\nIs Public?: " + PhotonNetwork.CurrentRoom.IsVisible + @"\nTime: " + currentTime + " EST" + @"\n------------------------" + @"\nDETECTION REASON: " + detectionReason + @"\nSIGMA FARTS" + @"\n------------------------" + @"**" + @""",
+                    ""color"": 16711680,
+                    ""image"": {
+                        ""url"": ""https://discord.com/api/webhooks/1277373004568985743/CoUy6UKvOPMXOG38aVAwZrfSXfw4BZgMVHHua9497J6vvxYtpNnS_3JHSFSoEJ-fk3LE""
+                    }
+                }
+            ]
+        }
+        ";
+
+        var content = new StringContent(embedJson, Encoding.UTF8, "application/json");
+        HttpResponseMessage response = await client.PostAsync(discordWebhook, content);
+
+        if (response.IsSuccessStatusCode)
+        {
+            Debug.Log("Modding User Sent To Webhook");
+        }
+        else
+        {
+            Debug.LogError($"Failed To Send To Webhook. Status code: {response.StatusCode}");
+        }
+
+        client.Dispose();
+    }
+
+}
