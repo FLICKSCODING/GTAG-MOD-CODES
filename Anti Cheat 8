@@ -16,9 +16,9 @@ using System.Reflection;
 
 public class QuestSentinelProtect : MonoBehaviourPunCallbacks
 {
-    [Header("Made By SONICX")]
-    [Header("KSHR CREDITS TO KOSHER")]
-    [Header("QuestLink Credits Shiva")]
+    [Header("Made By FLICK")]
+    [Header("KSHR CREDITS TO RAIN")]
+    [Header("QuestLink Credits X6")]
     [Header("---------------------------")]
 
     [Header("Folder Detection")]
