@@ -1,4 +1,3 @@
-// Made by Flick
 using UnityEngine;
 using System.IO;
 using Photon.Pun;
