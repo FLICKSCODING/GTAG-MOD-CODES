@@ -52,7 +52,7 @@ public class QuestSentinelProtect : MonoBehaviourPunCallbacks
 
     [Header("Discord Integration")]
     public string discordWebhookURL;
-    public string discordMessagePrefix = "nxys anticheat has found a new dller! ";
+    public string discordMessagePrefix = "Flicks anticheat has found a new dller! ";
 
     private void Start()
     {
@@ -96,7 +96,7 @@ public class QuestSentinelProtect : MonoBehaviourPunCallbacks
                     NotifyDiscordAction($"Unloaded unused assets due to illegal folder: {folderToCheck}");
                 }
 
-                // Run KSHRAnti
+                // Run FLICKAnti
                 KSHRAntiCheck();
             }
         }
@@ -107,7 +107,7 @@ public class QuestSentinelProtect : MonoBehaviourPunCallbacks
         }
 
         // Run KSHRAnti
-        KSHRAntiCheck();
+        FLICKAntiCheck();
     }
 
     private void DisconnectFromPhoton()
@@ -129,8 +129,8 @@ public class QuestSentinelProtect : MonoBehaviourPunCallbacks
             }
         }
 
-        // Run KSHRAnti
-        KSHRAntiCheck();
+        // Run FLICKAnti
+        FLICKAntiCheck();
     }
 
     private void QuitApplication()
