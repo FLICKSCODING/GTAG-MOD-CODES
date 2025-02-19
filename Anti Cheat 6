@@ -11,7 +11,7 @@ using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
-public class KSHRAnti : MonoBehaviour
+public class FLICKAnti : MonoBehaviour
 {
     public string[] assembliesToCheck = new string[4]
     {
@@ -54,7 +54,7 @@ public class KSHRAnti : MonoBehaviour
                     GameObject[] gameObjects = FindObjectsOfType<GameObject>();
                     foreach (GameObject gulp in gameObjects)
                     {
-                        if (gulp.name != "KSHRANTI")
+                        if (gulp.name != "FLICKANTI")
                         {
                             Destroy(gulp);
                         }
