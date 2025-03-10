@@ -1,5 +1,3 @@
-// Made and Created by FLICK
-// Change the 9f number to whatever you desire EX: 15f
 public static void SpeedBoostMod()
         {
             GorillaLocomotion.Player.Instance.maxJumpSpeed = 9f;
