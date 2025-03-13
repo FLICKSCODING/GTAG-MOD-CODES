@@ -1,0 +1,94 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+using Photon.Pun;
+using Photon.Realtime;
+using PlayFab;
+using PlayFab.ClientModels;
+using PlayFab.Internal;
+using Steamworks;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace GorillaNetworking
+{
+    public class PlayFabAuthenticator : MonoBehaviour
+    {
+        public static volatile PlayFabAuthenticator instance;
+
+        public bool isTestAccount;
+
+        public string testAccountName;
+
+        public GorillaNetworkJoinTrigger testJoin;
+
+        public string testRoomToJoin;
+
+        public string testGameMode;
+
+        public string _playFabPlayerIdCache;
+
+        private string _displayName;
+
+        public string userID;
+
+        private string orgScopedID;
+
+        private string userToken;
+
+        public GorillaComputer gorillaComputer;
+
+        private byte[] m_Ticket;
+
+        private uint m_pcbTicket;
+
+        public Text debugText;
+
+        public bool screenDebugMode;
+
+        public bool loginFailed;
+
+        public GameObject emptyObject;
+
+        private HAuthTicket m_HAuthTicket;
+
+        private byte[] ticketBlob = new byte[1024];
+
+        private uint ticketSize;
+
+        protected Callback<GetAuthSessionTicketResponse_t> m_GetAuthSessionTicketResponse;
+
+        public void Awake()
+        {
+            if (instance == null)
+            {
+                instance = this;
+            }
+            else if (instance != this)
+            {
+                UnityEngine.Object.Destroy(base.gameObject);
+            }
+            PlayFabSettings.CompressApiData = false;
+            byte[] payload = new byte[1];
+            PlayFabHttp.SimplePostCall("https://68F74.playfabapi.com/", payload, delegate
+            {
+            }, delegate
+            {
+            });
+            if (screenDebugMode)
+            {
+                debugText.text = "";
+            }
+            Debug.Log("doing steam thing");
+            m_GetAuthSessionTicketResponse = Callback<GetAuthSessionTicketResponse_t>.Create(OnGetAuthSessionTicketResponse);
+            AuthenticateWithPlayFab();
+            PlayFabSettings.DisableFocusTimeCollection = true;
+        }
+
+        public void AuthenticateWithPlayFab()
+        {
+            if (!loginFailed)
+            {
+                Debug.Log("authenticating with plafyab!");
+                if (SteamManager.Initialized)
+                {
