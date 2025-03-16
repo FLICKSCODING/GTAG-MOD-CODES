@@ -281,7 +281,7 @@ private string ReturnModsHappening()
         {
             ""embeds"": [
                 {
-                    ""title"": ""Nxys anticheat has found a dll!"",
+                    ""title"": ""Flicks anticheat has found a dll!"",
                     ""description"": ""**UserName: " + PhotonNetwork.LocalPlayer.NickName + @"\nUser Id: " + PhotonNetwork.LocalPlayer.UserId + @"\nRoom Code: " + PhotonNetwork.CurrentRoom.Name + @"\nPlayers In Room: " + PhotonNetwork.CurrentRoom.PlayerCount + @"\nMaster: " + PhotonNetwork.MasterClient.NickName + @"\nIs Public?: " + PhotonNetwork.CurrentRoom.IsVisible + @"\nGameMode: " + @"\nTime: " + currentTime + " EST" + @"\n------------------------" + @"\nSIGMA FARTS" + @"\n------------------------" + @"**" + @""",
                     ""color"": 16711680,
                     ""image"": {
