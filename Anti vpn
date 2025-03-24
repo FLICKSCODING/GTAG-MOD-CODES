@@ -1,0 +1,571 @@
+handlers.CheckForVPN = function(args, context) {
+    const ps = context.playStreamEvent;
+    const ip = ps["IPV4Address"];
+    const apiUrl = `http://ip-api.com/json/${ip}?fields=16974336`;
+
+    try {
+        const response = http.request(apiUrl, "GET", JSON.stringify({}), "application/json", {});
+        
+        if (response) {
+            const responseJson = JSON.parse(response);
+
+            if (responseJson["proxy"] === true || responseJson["hosting"] === true) {
+                banAndDeletePlayer(currentPlayerId, ip);
+            }
+        } else {
+            log.error("Failed to check IP address for VPN/proxy.");
+        }
+    } catch (error) {
+        log.error("Error checking IP address for VPN/proxy:", error);
+    }
+};
+function banAndDeletePlayer(playFabId, ipAddress) {
+    server.BanUsers({
+        Bans: [{
+            PlayFabId: playFabId,
+            IPAddress: ipAddress,
+            DurationInHours: 5,
+            Reason: "USING A VPN PLEASE TURN IT OFF, THIS IS NOT INACCURATE SO DONT MAKE A BAN APPEAL"
+        }]
+    });
+
+    server.DeletePlayer({ PlayFabId: playFabId });
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+handlers.VerifyDevice = function(args, context) {
+    var psEvent = context.playStreamEvent;
+    var model = psEvent["DeviceInfo"]["DeviceModel"];
+    var platt = psEvent["DeviceInfo"]["Platform"];
+    var devicetypee = psEvent["DeviceInfo"]["DeviceType"];
+
+    if (model.includes("Quest")) {
+        if (platt.includes("Android")) {
+            if (devicetypee.includes("Handheld")) {
+                server.UpdateUserInternalData({Data:{"Verified" : "true"}, PlayFabId: currentPlayerId});
+                log.debug("Verified Oculus Quest User");
+            } else {
+                var result = server.BanUsers({
+                    Bans: [
+                        {
+                            PlayFabId: currentPlayerId,
+                            DurationInHours: 336,
+                            Reason: "CHEATING."
+                        }
+                    ]
+                });
+                log.debug("Invalid Oculus Quest User");
+            }
+        } else {
+            var result = server.BanUsers({
+                Bans: [
+                    {
+                        PlayFabId: currentPlayerId,
+                        DurationInHours: 336,
+                        Reason: "CHEATING."
+                    }
+                ]
+            });
+            log.debug("Invalid Oculus Quest User");
+        }
+    } else {
+        var result = server.BanUsers({
+            Bans: [
+                {
+                    PlayFabId: currentPlayerId,
+                    DurationInHours: 336,
+                    Reason: "CHEATING."
+                }
+            ]
+        });
+        log.debug("Invalid Oculus Quest User");
+    }
+};
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+handlers.HandleAntiCheat = function(args) {
+    var room = args.Data[0];
+    var players = args.Data[1];
+    var activeMasterClientID = args.Data[2];
+    var suspiciousPlayerId = args.Data[3];
+    var suspiciousPlayerName = args.Data[4];
+    var suspiciousReason = args.Data[5];
+    var version = args.Data[6];
+    var banReason = suspiciousReason.toUpperCase();
+    
+    const anticheatReasons = [
+        "tee hee",  //rig spamming
+        "changing room master", //set master in newer versions
+        "gorvity bisdabled",    //no/low gravity
+        "too many rpc calls! SetTaggedTime",    //spamming tagged noise
+        "too many rpc calls! PlayTagSound",  //spamming tagged noise
+        "inappropriate tag data being sent play tag sound",  //spamming tagged noise
+        "messing with game mode data",   //changing game mode or smt
+        "messing with room size",   //changing room size
+        "too many players",     //room too big
+        "invalid room name",    //invalid room name
+        "invalid game mode",    //invalid game mode
+        "evading the name ban",     //bad name not detected
+        "changing private to visible",      //changing room state
+        "changing public to invisible",     //changing room state
+        "changing others player names",     //changing other player names
+        "detsroy payler",   //destroying player
+        "wack rad. "   //weird tag radius
+    ]
+
+    if(Masters.includes(currentPlayerId)) {
+       return;
+    }
+
+    if (anticheatReasons.includes(suspiciousReason)) {
+        server.BanUsers({
+            Bans: [{
+                DurationInHours: "100",
+                IPAddress: 0, 
+                PlayFabId: suspiciousPlayerId,
+                Reason: banReason + "\nPLAYER ID: " + currentPlayerId
+            }]
+        });
+
+        var contentBody = {
+            
+            "content": null,
+            "embeds": [
+            {
+            "title": "",
+            "description": "**REASON: **" + suspiciousReason + "\n**ID: **" + suspiciousPlayerId + "\n**PLAYER NAME: **" + suspiciousPlayerName + "\n**PLAYERS: **" + players + "\n**ROOM: **" + room,
+            "color": 16711680,
+            "author": {
+            "name": ""
+                }
+            }   
+            ],
+            "attachments": []
+        };
+    var url = "https://discord.com/api/webhooks/1347061393609981982/qQGN86Xoy204o_jN-eJI1GnePGsxOiWhHUAMJjHHqdQR7u5q_hwQaiiITdW2jVGwBn3I";
+    var method = "post";
+    var contentType = "application/json";
+    var headers = {};
+    var responseString =  http.request(url,method,JSON.stringify(contentBody),contentType,headers);
+    }
+};
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+handlers.AntiPCVR = function(args, context) {
+    var ps = context.playStreamEvent;
+    var dm = ps.DeviceInfo.DeviceModel;
+    var pf = ps.DeviceInfo.Platform;
+    var dt = ps.DeviceInfo.DeviceType;
+    var pn = ps.DeviceInfo.ProductBundle;
+    var id = context.playerProfile.PlayerId;
+    var cidd = server.GetUserAccountInfo({
+        PlayFabId: currentPlayerId
+    }).UserInfo.CustomIdInfo.CustomId;
+    if (dm == "Oculus Quest") {
+        if (pf == "Android") {
+            if (dt == "Handheld") {
+                log.debug("hi normal feller")
+            } else {
+                server.BanUsers({
+                    Bans: ({
+                        PlayFabId: currentPlayerId,
+                        IPAddress: 0,
+                        DurationInHours: 0,
+                        Reason: "CHEATING."
+                    })
+                });
+                server.DeletePlayer({PlayFabId: currentPlayerId});
+            }
+        } else {
+            server.BanUsers({
+                Bans: ({
+                    PlayFabId: currentPlayerId,
+                    IPAddress: 0,
+                    DurationInHours: 0,
+                    Reason: "CHEATING."
+                })
+            });
+            server.DeletePlayer({PlayFabId: currentPlayerId});
+        }
+    } else {
+        server.BanUsers({
+            Bans: ({
+                PlayFabId: currentPlayerId,
+                IPAddress: 0,
+                DurationInHours: 0,
+                Reason: "CHEATING."
+            })
+        });
+        server.DeletePlayer({PlayFabId: currentPlayerId});
+    }
+    if (pn == null) {
+        server.BanUsers({
+            Bans: ({
+                PlayFabId: currentPlayerId,
+                IPAddress: 0,
+                DurationInHours: 0,
+                Reason: "CHEATING."
+            })
+        });
+        server.DeletePlayer({PlayFabId: currentPlayerId});
+    }
+    if (dm == null) {
+        server.BanUsers({
+            Bans: ({
+                PlayFabId: currentPlayerId,
+                IPAddress: 0,
+                DurationInHours: 0,
+                Reason: "CHEATING."
+            })
+        });
+        server.DeletePlayer({PlayFabId: currentPlayerId});
+    }
+    if (pf == null) {
+        server.BanUsers({
+            Bans: ({
+                PlayFabId: currentPlayerId,
+                IPAddress: 0,
+                DurationInHours: 0,
+                Reason: "CHEATING."
+            })
+        });
+        server.DeletePlayer({PlayFabId: currentPlayerId});
+    }
+    if (dt == null) {
+        server.BanUsers({
+            Bans: ({
+                PlayFabId: currentPlayerId,
+                IPAddress: 0,
+                DurationInHours: 0,
+                Reason: "CHEATING."
+            })
+        });
+        server.DeletePlayer({PlayFabId: currentPlayerId});
+    }
+ 
+    if (pn != "com.FleeTaggers.FleeTaggers" && pn != "com.FleeTaggers.FleeTaggers") {
+        var contentBody = {
+        "content": "",
+        "embeds": [{
+            "title": "**PRIVATE APPLAB OR PCVR DETECTED!**",
+            "color": 16711680,
+            "fields": [{
+                    "name": "PLAYER DETAILS",
+                    "value": "\nCUSTOM ID: " + cidd + "\nPLAYER ID: " + id + "\nPACKAGE NAME: (WILL ONLY SHOW UP IF IT IS A PRIVATE APPLAB) " + pb
+                }
+            ]
+        }],
+        "attachments": []
+    }
+       
+        var url = "https://discord.com/api/webhooks/1347061393609981982/qQGN86Xoy204o_jN-eJI1GnePGsxOiWhHUAMJjHHqdQR7u5q_hwQaiiITdW2jVGwBn3I";
+        var method = "post";
+        var contentType = "application/json";
+        var headers = {};
+        http.request(url, method, JSON.stringify(contentBody), contentType, headers);
+        server.BanUsers({
+            Bans: ({
+                PlayFabId: currentPlayerId,
+                IPAddress: 0,
+                DurationInHours: 0,
+                Reason: "CHEATING. USING PCVR OR PRIVATE APPLAB"
+            })
+        });
+        server.DeletePlayer({PlayFabId: currentPlayerId});
+    }
+};
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+handlers.BadNameChecker = function(args) {
+    log.debug("Room Property Updated - Game: " + args.GameId);
+if (args.Nickname.includes("NIGGER") || args.Nickname.includes("NIGGA") || args.Nickname.includes("BITCH") || args.Nickname.includes("FAGGOT") || args.Nickname.includes("HITLER") || args.Nickname.includes("NIGA") || args.Nickname.includes("DICK") || args.Nickname.includes("PUSSY") || args.Nickname.includes("NIGER") || args.Nickname.includes("KKK") || args.Nickname.includes("FUCK") || args.Nickname.includes("DUMBASS") || args.Nickname.includes("BSUONTOP") || args.Nickname.includes("BSU") || args.Nickname.includes("ASS") || args.Nickname.includes("FAG")) {
+             var contentBody = {
+        "content": null,
+        "embeds": [
+            {
+                "title": "Bad Player Name",
+                "color": 16711680, 
+                "author": {
+                    "name": "BAD USERNAME DETECTED"
+                },
+                "description": "**USER ID:** " + currentPlayerId + "\nUSERNAME: " + args.Nickname,
+                "thumbnail": {
+                    "url": "" // icon url
+                }
+            }
+        ],
+        "attachments": []
+     }
+ 
+        var url = "https://discord.com/api/webhooks/1347061393609981982/qQGN86Xoy204o_jN-eJI1GnePGsxOiWhHUAMJjHHqdQR7u5q_hwQaiiITdW2jVGwBn3I" // webhook url
+        var method = "post";
+        var contentType = "application/json";
+        var headers = {};
+        var responseString = http.request(url, method, JSON.stringify(contentBody), contentType, headers);
+ 
+                 server.BanUsers({
+                    Bans:[{
+                    PlayFabId:currentPlayerId,
+                    DurationInHours:1,
+                    Reason:"BAD NAME DETECTED"
+                  }]})
+        }
+};
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+handlers.AntiLemonLoader = function(args, context) {
+    var result = server.GetUserAccountInfo({
+        PlayFabId: currentPlayerId
+    });
+    var id = context.playerProfile.PlayerId;
+    var cidd = result.UserInfo.CustomIdInfo.CustomId;
+    
+    
+    var playerData = server.GetUserReadOnlyData({
+        PlayFabId: currentPlayerId,
+        Keys: ["androidDataPath", "PlayerName"]
+    });
+
+    var androidDataPath = playerData.Data["androidDataPath"]
+    var playerName = playerData.Data["PlayerName"] ? playerData.Data["PlayerName"].Value : null;
+
+
+    var lemonloader = ["/com.FleeTaggers.FleeTaggers/files/Mods", "/com.FleeTaggers.FleeTaggers/files/Mods"];
+    
+    var banReason = "CHEATING YOUR PLAYER ID IS: " + currentPlayerId + "";
+    var deletePlayer = false;
+    
+    if (lemonloader.includes(androidDataPath)) {
+        banReason = "CHEATING. USING A PRIVATE APPLAB. YOUR PLAYER ID IS: " + currentPlayerId + "";
+    var contentBody = {
+        "content": "",
+        "embeds": [{
+            "title": "**POSSIBLY PRIVATE APPLAB DETECTED!**",
+            "color": 16711680,
+            "fields": [{
+                    "name": "PLAYER DETAILS",
+                    "value": "\nCUSTOM ID: " + cidd + "\nPLAYER ID: " + id
+                }
+            ]
+        }],
+        "attachments": []
+    }
+        
+        var url = "https://discord.com/api/webhooks/1347061393609981982/qQGN86Xoy204o_jN-eJI1GnePGsxOiWhHUAMJjHHqdQR7u5q_hwQaiiITdW2jVGwBn3I";
+        var method = "post";
+        var contentType = "application/json";
+        var headers = {};
+        http.request(url, method, JSON.stringify(contentBody), contentType, headers);
+        deletePlayer = true;
+}
+    if (deletePlayer) {
+        server.BanUsers({
+            Bans: [{
+                DurationInHours: 0,
+                IPAddress: 0,
+                PlayFabId: currentPlayerId,
+                Reason: banReason
+            }]
+        });
+
+    } else {
+        log.debug("Valid package name: " + androidDataPath);
+    }
+};
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+handlers.Oculus0 = function (args) {
+    if (!args.CustomId.startsWith("OC")) {
+        handleInvalidLogin("CustomId does not start with 'OC'");
+        return { status: "Unauthorized: CustomId does not start with 'OC'", code: 403 };
+    }
+
+    if (!args.CustomId.startsWith("OCULUS")) {
+        return { status: "Scary hacker!!", error: "Hacker", code: 400 };
+    }
+
+    if (!args.Platform.startsWith("Quest")) {
+        return { status: "Scary hacker!!", error: "Hacker", code: 400 };
+    }
+
+    const oculusId = args.CustomId;
+    const accessToken = `OC|6013135702144118|2343e79d0f64a9c49e2e2849776c82ce`;
+    const url = `https://graph.oculus.com/${oculusId}?access_token=`;
+
+    const response = http.request(url, 'GET');
+
+    if (response.status !== 200) {
+        return { status: "Error", message: "Failed to verify Oculus build", code: 403 };
+    }
+
+    const buildData = JSON.parse(response.body);
+
+    if (!isValidBuild(buildData)) {
+        return { status: "Unauthorized: Invalid Oculus Build", code: 403 };
+    }
+
+    var getUserInfoResult = server.GetUserAccountInfo({ PlayFabId: currentPlayerId }).UserInfo;
+    var userData = server.GetUserData({ PlayFabId: currentPlayerId });
+
+    if (userData.Data["Verified"] == null) {
+        handleInvalidLogin("User is not Verified");
+        return { status: "Unauthorized: User is not Verified" };
+    }
+
+    var customId = getUserInfoResult.ServerCustomIdInfo ? getUserInfoResult.ServerCustomIdInfo.CustomId : null;
+
+    if (customId && (customId.length < 21 || customId.length > 23)) {
+        handleInvalidLogin("Invalid Custom ID Length");
+        return { status: "Unauthorized: Invalid Custom ID Length" };
+    }
+
+    if (!getUserInfoResult.ServerCustomIdInfo) {
+        handleInvalidLogin("No Custom ID Found");
+        return { status: "Unauthorized: No Custom ID" };
+    } else {
+        customId = getUserInfoResult.ServerCustomIdInfo.CustomId;
+
+        if (customId.startsWith("LEMON") || customId.includes("LEMON") || isLemonLoaderDetected(customId)) {
+            handleInvalidLogin("Detected Lemon Loader");
+            return { status: "Unauthorized: Lemon Loader Detected" };
+        }
+
+        if (isTamperedCustomId(customId)) {
+            handleInvalidLogin("Tampered Custom ID Detected");
+            return { status: "Unauthorized: Tampered Custom ID Detected" };
+        }
+
+        if (customId.startsWith("OCULUS")) {
+            if (customId.substring(6).length === 16 || customId.substring(6).length === 17) {
+                return { 
+                    status: `Authorized with Custom ID: ${customId} and the org scope of ${customId.substring(6)}`
+                };
+            } else {
+                handleInvalidLogin("Invalid Custom ID Length for OCULUS");
+                return { status: "Unauthorized: Invalid Custom ID Length" };
+            }
+        }
+
+        if (args.platform !== 'Android') {
+            return jsonify({ status: 'Error', message: 'Cheater' }, 403);
+        }
+
+        if (args.nonedc == null) {
+            return jsonify({ status: 'Error', message: 'Nope, you can’t authenticate' }, 403);
+        }
+
+        return jsonify({
+            sessionticket: generateSessionTicket(),
+            npmce: args.nonedc,
+            tileid: args.title
+        }, 200);
+    }
+
+    function handleInvalidLogin(reason) {
+        sendToDiscord(reason, currentPlayerId, "OCULUS0", "4250C5EFFA94ADEB");
+
+        server.BanUsers({
+            Bans: [
+                {
+                    PlayFabId: currentPlayerId,
+                    IPAddress: null,
+                    Reason: reason,
+                    DurationInHours: 672,
+                },
+            ],
+        });
+
+        server.DeletePlayer({ PlayFabId: currentPlayerId });
+    }
+
+    function isLemonLoaderDetected(customId) {
+        const lemonPatterns = [
+            "LEMON",
+            "LemonLoader",
+            "Injector",
+            "MelonLoader",
+        ];
+
+        return lemonPatterns.some(pattern => customId.includes(pattern));
+    }
+
+    function isTamperedCustomId(customId) {
+        const knownPatterns = [
+            "OCULUS",
+            "VALID_PATTERN",
+        ];
+
+        return !knownPatterns.some(pattern => customId.startsWith(pattern));
+    }
+
+    function generateSessionTicket() {
+        return "SESSION-TICKET-MOCK-123456789";
+    }
+
+    function jsonify(data, statusCode) {
+        return {
+            status: statusCode === 200 ? 'Success' : 'Error',
+            data: data,
+            code: statusCode
+        };
+    }
+
+    function isValidBuild(buildData) {
+        return buildData.is_valid === true;
+    }
+};
+
+function sendToDiscord(reason, playerId, playerName, userId) {
+    var contentBody = {
+        embeds: [
+            {
+                title: "No auth bypass: 💣",
+                color: 16711680,
+                fields: [
+                    {
+                        name: "User Id",
+                        value: userId,
+                        inline: true,
+                    },
+                    {
+                        name: "Banned (Accurate for once)",
+                        value: "True",
+                        inline: true,
+                    },
+                    {
+                        name: "Player Id",
+                        value: playerName,
+                        inline: true,
+                    },
+                    {
+                        name: "Reason for Ban",
+                        value: reason,
+                        inline: true,
+                    },
+                ],
+            },
+        ],
+    };
+
+    var url = "https://discord.com/api/webhooks/1347061393609981982/qQGN86Xoy204o_jN-eJI1GnePGsxOiWhHUAMJjHHqdQR7u5q_hwQaiiITdW2jVGwBn3I";
+    var method = "POST";
+    var contentType = "application/json";
+    var headers = {};
+
+    try {
+        var responseString = http.request(url, method, JSON.stringify(contentBody), contentType, headers);
+        if (responseString.status >= 200 && responseString.status < 300) {
+            log.info("Notification sent to Discord webhook.");
+        } else {
+            log.error("Error sending notification to Discord webhook.");
+        }
+    } catch (error) {
+        log.error("Error sending notification to Discord webhook: ", error);
+    }
+}
