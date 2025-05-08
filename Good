@@ -1,0 +1,573 @@
+local Players = game:GetService("Players")
+local Teams = game:GetService("Teams")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui") or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+local Camera = Workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+
+if not LocalPlayer or not RunService:IsClient() then
+    print("Script Error: Not running on client or LocalPlayer not found. Stopping.")
+    return
+end
+
+local Drawing = Drawing or {
+    new = function(type)
+        local dummy = {Visible=false}
+        function dummy:Destroy() end
+        return dummy
+    end,
+    Fonts = { UI = Enum.Font.SourceSans }
+}
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CombinedMenu_" .. math.random(1,10000)
+ScreenGui.Parent = CoreGui
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 200, 0, 290)
+MainFrame.Position = UDim2.new(0.1, 0, 0.1, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(35, 39, 42)
+MainFrame.BorderColor3 = Color3.fromRGB(25, 27, 29)
+MainFrame.BorderSizePixel = 1
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Visible = true
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 5)
+UICorner.Parent = MainFrame
+
+local ListLayout = Instance.new("UIListLayout")
+ListLayout.Padding = UDim.new(0, 8)
+ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+ListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+ListLayout.Parent = MainFrame
+
+local ESP_SETTINGS = {
+    Enabled = true,
+    Boxes = true,
+    Names = true,
+    MaxDistance = 800
+}
+local TEAM_COLORS = {
+    ["Administrative Department"] = Color3.fromRGB(200, 200, 200),
+    ["Chaos Insurgency"] = Color3.fromRGB(0, 170, 0),
+    ["Class - D"] = Color3.fromRGB(255, 120, 0),
+    ["Intelligence Agency"] = Color3.fromRGB(0, 0, 200),
+    ["Internal Security Department"] = Color3.fromRGB(150, 0, 0),
+    ["Medical Department"] = Color3.fromRGB(255, 255, 255),
+    ["Mobile Task Force"] = Color3.fromRGB(0, 85, 185),
+    ["Rapid Response Team"] = Color3.fromRGB(255, 255, 0),
+    ["Scientific Department"] = Color3.fromRGB(0, 170, 255),
+    ["Security Department"] = Color3.fromRGB(170, 170, 170),
+    ["Default"] = Color3.fromRGB(255, 0, 255)
+}
+local espShowMode = "None"
+local foundationTeams = {
+    "Administrative Department", "Intelligence Agency", "Internal Security Department",
+    "Medical Department", "Mobile Task Force", "Rapid Response Team",
+    "Scientific Department", "Security Department"
+}
+local enemyTeams = {"Chaos Insurgency", "Class - D"}
+
+local AIMBOT_CONFIG = {
+    AIM_INPUT_TYPE = Enum.UserInputType.MouseButton2,
+    AIM_FOV = 90,
+    TARGET_PART_NAME = "Head",
+    CHECK_ALIVE = true,
+    VISIBILITY_CHECK = true
+}
+local aimbotMode = "None"
+
+local noclipEnabled = false
+
+local flyingEnabled = false
+local flySpeed = 70
+local flyControl = {F = 0, B = 0, L = 0, R = 0, U = 0, D = 0}
+local flyVelocity = nil
+local flyBodyGyro = nil
+
+local espDrawings = {}
+local buttons = {}
+local aimbotTarget = nil
+local isHoldingAimKey = false
+
+local function clearPlayerDrawings(player)
+	if espDrawings[player] then
+		for key, drawingObject in pairs(espDrawings[player]) do
+			if drawingObject then
+				if drawingObject.Destroy then drawingObject:Destroy()
+				elseif drawingObject.Remove then drawingObject:Remove()
+				elseif drawingObject.Visible ~= nil then drawingObject.Visible = false
+				end
+				espDrawings[player][key] = nil
+			end
+		end
+		espDrawings[player] = nil
+	end
+end
+
+local function updateESP()
+	if espShowMode == "None" then
+		if next(espDrawings) then
+			for player, _ in pairs(espDrawings) do clearPlayerDrawings(player) end
+		end
+		return
+	end
+
+	local localCharacter = LocalPlayer.Character
+	if not localCharacter then return end
+
+	local playersToClear = {}
+	for player, _ in pairs(espDrawings) do playersToClear[player] = true end
+
+	for _, player in pairs(Players:GetPlayers()) do
+		if player == LocalPlayer then continue end
+
+		local character = player.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local hrp = humanoid and character:FindFirstChild("HumanoidRootPart")
+
+		if humanoid and humanoid.Health > 0 and hrp and player.Team then
+			local teamName = player.Team.Name
+			local teamColor = TEAM_COLORS[teamName] or TEAM_COLORS["Default"]
+
+			local shouldDisplay = false
+			if espShowMode == "Everyone" then shouldDisplay = true
+			elseif espShowMode == "Foundation" then shouldDisplay = table.find(foundationTeams, teamName) ~= nil
+			elseif espShowMode == "Enemies" then shouldDisplay = table.find(enemyTeams, teamName) ~= nil
+			end
+
+			if shouldDisplay then
+				local distance = (Camera.CFrame.Position - hrp.Position).Magnitude
+				local inRange = distance <= ESP_SETTINGS.MaxDistance
+
+				if inRange then
+					local screenPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+					if onScreen then
+						playersToClear[player] = nil
+						if not espDrawings[player] then espDrawings[player] = {} end
+						local drawings = espDrawings[player]
+
+						local headPos = character:FindFirstChild("Head")
+						local nameTagPos = headPos and headPos.Position or hrp.Position + Vector3.new(0, 2.5, 0)
+						local nameTagScreenPos, nameTagOnScreen = Camera:WorldToViewportPoint(nameTagPos)
+
+						local scaleFactor = math.max(8, 800 / distance)
+						local boxHeight = scaleFactor * 2
+						local boxWidth = scaleFactor * 1.2
+
+						if ESP_SETTINGS.Boxes then
+							if not drawings.Box then drawings.Box = Drawing.new("Square") end
+							drawings.Box.Visible = true
+							drawings.Box.Color = teamColor
+							drawings.Box.Thickness = 1
+							drawings.Box.Filled = false
+							drawings.Box.Position = Vector2.new(screenPos.X - boxWidth/2, screenPos.Y - boxHeight/2)
+							drawings.Box.Size = Vector2.new(boxWidth, boxHeight)
+						elseif drawings.Box then drawings.Box.Visible = false end
+
+						if ESP_SETTINGS.Names and nameTagOnScreen then
+							if not drawings.Text then drawings.Text = Drawing.new("Text") end
+							drawings.Text.Visible = true
+							drawings.Text.Text = player.Name .. " [" .. math.floor(distance) .. "m]"
+							drawings.Text.Color = teamColor
+							drawings.Text.Size = 13
+							drawings.Text.Center = true
+							drawings.Text.Outline = true
+							drawings.Text.Font = Drawing.Fonts.UI
+							drawings.Text.Position = Vector2.new(nameTagScreenPos.X, nameTagScreenPos.Y - (boxHeight / 2) - 10)
+						elseif drawings.Text then drawings.Text.Visible = false end
+
+					else playersToClear[player] = true end
+				else playersToClear[player] = true end
+			else playersToClear[player] = true end
+		else playersToClear[player] = true end
+	end
+
+	for player, _ in pairs(playersToClear) do clearPlayerDrawings(player) end
+end
+
+local function GetScreenPositionAimbot(part)
+	if not part or not Camera then return nil end
+	local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+	if onScreen then
+		return Vector3.new(screenPos.X, screenPos.Y, screenPos.Z)
+	end
+	return nil
+end
+
+local function IsVisibleAimbot(targetPart)
+	if not AIMBOT_CONFIG.VISIBILITY_CHECK or not targetPart or not Camera or not LocalPlayer or not LocalPlayer.Character then return true end
+	local localRoot = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+	if not localRoot then return true end
+	local origin = Camera.CFrame.Position
+	local targetPos = targetPart.Position
+	local direction = (targetPos - origin)
+	local distance = direction.Magnitude
+	if distance < 0.1 then return false end
+
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = {LocalPlayer.Character}
+	params.IgnoreWater = true
+
+	local result = Workspace:Raycast(origin, direction.Unit * distance, params)
+
+	if not result or result.Instance == targetPart or (targetPart.Parent and result.Instance:IsDescendantOf(targetPart.Parent)) then
+		return true
+	else
+		return false
+	end
+end
+
+local function FindTargetAimbot()
+	if aimbotMode == "None" then return nil end
+
+	local potentialTargetPart = nil
+	local smallestScreenDist = AIMBOT_CONFIG.AIM_FOV
+	if not Camera or not LocalPlayer or not LocalPlayer.Character then return nil end
+	local localRoot = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+	if not localRoot then return nil end
+	local viewportSize = Camera.ViewportSize
+	local screenCenter = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player == LocalPlayer then continue end
+		local character = player.Character
+		if not character then continue end
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if AIMBOT_CONFIG.CHECK_ALIVE and (not humanoid or humanoid.Health <= 0 or humanoid:GetState() == Enum.HumanoidStateType.Dead) then continue end
+
+		local playerTeam = player.Team
+		if not playerTeam then continue end
+		local teamName = playerTeam.Name
+
+		if aimbotMode == "Foundation" then
+			if table.find(enemyTeams, teamName) then continue end
+		elseif aimbotMode == "Enemies" then
+			if not table.find(enemyTeams, teamName) then continue end
+		else
+			continue
+		end
+
+		local rootPart = character:FindFirstChild("HumanoidRootPart")
+		if not rootPart then continue end
+
+		local targetPart = character:FindFirstChild(AIMBOT_CONFIG.TARGET_PART_NAME) or rootPart
+		if targetPart then
+			local screenData = GetScreenPositionAimbot(targetPart)
+			if screenData and screenData.Z > 0 then
+				local screenPos = Vector2.new(screenData.X, screenData.Y)
+				local screenDist = (screenPos - screenCenter).Magnitude
+
+				if screenDist < smallestScreenDist then
+					if IsVisibleAimbot(targetPart) then
+						smallestScreenDist = screenDist
+						potentialTargetPart = targetPart
+					end
+				end
+			end
+		end
+	end
+	return potentialTargetPart
+end
+
+local function AimAtAimbot(targetPart)
+	 if not targetPart or not Camera then return end
+	 local targetPosition = targetPart.Position
+	 local cameraPosition = Camera.CFrame.Position
+	 if (targetPosition - cameraPosition).Magnitude < 1 then return end
+	 local success, err = pcall(function()
+		 Camera.CFrame = CFrame.lookAt(cameraPosition, targetPosition)
+	 end)
+end
+
+local function OnRenderStepAimbot()
+	if aimbotMode == "None" or not isHoldingAimKey or not LocalPlayer or not LocalPlayer.Character or not Camera then
+		aimbotTarget = nil
+		return
+	end
+
+	local localHumanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+	if not localHumanoid or localHumanoid.Health <= 0 then
+		aimbotTarget = nil
+		return
+	end
+
+	aimbotTarget = FindTargetAimbot()
+	if aimbotTarget then
+		AimAtAimbot(aimbotTarget)
+	end
+end
+
+local function NoClipSteppedFunction()
+	if noclipEnabled and LocalPlayer.Character then
+		for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+			if part:IsA("BasePart") and part.CanCollide == true then
+				part.CanCollide = false
+			end
+		end
+	end
+end
+
+local function resetPlayerCollision()
+	if LocalPlayer.Character then
+		for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				 if part.Name == "HumanoidRootPart" or part.Name == "Torso" or part.Name == "Head" or part.Name == "Left Leg" or part.Name == "Right Leg" or part.Name == "Left Arm" or part.Name == "Right Arm" then
+					part.CanCollide = true
+				 end
+			end
+		end
+		local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+		if humanoid and humanoid:GetState() == Enum.HumanoidStateType.Physics then
+			humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+			task.wait()
+			if humanoid:GetState() ~= Enum.HumanoidStateType.Dead then
+				humanoid:ChangeState(Enum.HumanoidStateType.Running)
+			end
+		end
+	end
+end
+
+local function startFly()
+	if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+	local hrp = LocalPlayer.Character.HumanoidRootPart
+	local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+
+	if flyVelocity and flyVelocity.Parent then flyVelocity:Destroy() end
+	if flyBodyGyro and flyBodyGyro.Parent then flyBodyGyro:Destroy() end
+
+	flyVelocity = Instance.new("BodyVelocity")
+	flyVelocity.Name = "FlyVelocity"
+	flyVelocity.Velocity = Vector3.zero
+	flyVelocity.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+	flyVelocity.P = 5000
+	flyVelocity.Parent = hrp
+
+	flyBodyGyro = Instance.new("BodyGyro")
+	flyBodyGyro.Name = "FlyGyro"
+	flyBodyGyro.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+	flyBodyGyro.P = 20000
+	flyBodyGyro.CFrame = hrp.CFrame
+	flyBodyGyro.Parent = hrp
+
+	if humanoid then
+		humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+	end
+
+	print("Fly Started")
+end
+
+local function stopFly()
+	if flyVelocity then flyVelocity:Destroy(); flyVelocity = nil end
+	if flyBodyGyro then flyBodyGyro:Destroy(); flyBodyGyro = nil end
+
+	local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid and humanoid:GetState() == Enum.HumanoidStateType.Physics then
+		humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+		task.wait()
+		if humanoid:GetState() ~= Enum.HumanoidStateType.Dead then
+			humanoid:ChangeState(Enum.HumanoidStateType.Running)
+		end
+	end
+
+	flyControl = {F = 0, B = 0, L = 0, R = 0, U = 0, D = 0}
+	print("Fly Stopped")
+end
+
+local function FlyRenderSteppedFunction()
+	if flyingEnabled and LocalPlayer.Character and flyVelocity and flyBodyGyro then
+		local hrp = LocalPlayer.Character.HumanoidRootPart
+		if not hrp then stopFly(); return end
+
+		local cam = workspace.CurrentCamera
+		local moveVec = Vector3.new(flyControl.L + flyControl.R, flyControl.U + flyControl.D, flyControl.F + flyControl.B)
+
+		if moveVec.Magnitude > 0 then
+			moveVec = moveVec.Unit
+		end
+
+		local worldMoveVec = (cam.CFrame:VectorToWorldSpace(moveVec))
+
+		if worldMoveVec == worldMoveVec then
+			flyVelocity.Velocity = worldMoveVec * flySpeed
+		else
+			flyVelocity.Velocity = Vector3.zero
+		end
+
+		flyBodyGyro.CFrame = cam.CFrame
+	elseif flyingEnabled and (not flyVelocity or not flyBodyGyro) then
+		task.wait(0.1)
+		if flyingEnabled then
+			startFly()
+		end
+	end
+end
+
+local activeColor = Color3.fromRGB(88, 101, 242)
+local inactiveColor = Color3.fromRGB(70, 75, 80)
+local font = Enum.Font.GothamSemibold
+local textColor = Color3.fromRGB(255, 255, 255)
+
+local function updateEspModeButtonVisuals()
+	for mode, button in pairs(buttons) do
+        if mode == "Everyone" or mode == "Foundation" or mode == "Enemies" then
+            if button then
+			    button.BackgroundColor3 = (espShowMode == mode) and activeColor or inactiveColor
+            end
+		end
+	end
+end
+
+local function updateAimbotModeButtonVisuals()
+	local foundationBtn = buttons["Foundation Aim"]
+	local enemiesBtn = buttons["Enemies Aim"]
+
+	if foundationBtn then
+		foundationBtn.BackgroundColor3 = (aimbotMode == "Foundation") and activeColor or inactiveColor
+	end
+	if enemiesBtn then
+		enemiesBtn.BackgroundColor3 = (aimbotMode == "Enemies") and activeColor or inactiveColor
+	end
+end
+
+local function updateNoClipButtonVisual()
+	local button = buttons["NoClip"]
+	if button then
+		button.BackgroundColor3 = noclipEnabled and activeColor or inactiveColor
+	end
+end
+
+local function updateFlyButtonVisual()
+	local button = buttons["Fly"]
+	if button then
+		button.BackgroundColor3 = flyingEnabled and activeColor or inactiveColor
+	end
+end
+
+local function createToggleButton(buttonName, layoutOrder, onClickCallback)
+	local button = Instance.new("TextButton")
+	button.Name = buttonName
+	button.Text = buttonName
+	button.Size = UDim2.new(0.9, 0, 0, 30)
+	button.BackgroundColor3 = inactiveColor
+	button.TextColor3 = textColor
+	button.Font = font
+	button.TextSize = 14
+	button.LayoutOrder = layoutOrder
+	button.Parent = MainFrame
+
+	local btnCorner = Instance.new("UICorner")
+	btnCorner.CornerRadius = UDim.new(0, 4)
+	btnCorner.Parent = button
+
+	button.MouseButton1Click:Connect(onClickCallback)
+	buttons[buttonName] = button
+	return button
+end
+
+createToggleButton("Everyone", 1, function()
+	espShowMode = (espShowMode == "Everyone") and "None" or "Everyone"
+	updateEspModeButtonVisuals()
+end)
+createToggleButton("Foundation", 2, function()
+	espShowMode = (espShowMode == "Foundation") and "None" or "Foundation"
+	updateEspModeButtonVisuals()
+end)
+createToggleButton("Enemies", 3, function()
+	 espShowMode = (espShowMode == "Enemies") and "None" or "Enemies"
+	updateEspModeButtonVisuals()
+end)
+
+createToggleButton("Foundation Aim", 4, function()
+	aimbotMode = (aimbotMode == "Foundation") and "None" or "Foundation"
+	updateAimbotModeButtonVisuals()
+end)
+
+createToggleButton("Enemies Aim", 5, function()
+	aimbotMode = (aimbotMode == "Enemies") and "None" or "Enemies"
+	updateAimbotModeButtonVisuals()
+end)
+
+createToggleButton("NoClip", 6, function()
+	noclipEnabled = not noclipEnabled
+	if not noclipEnabled then
+		resetPlayerCollision()
+	end
+	updateNoClipButtonVisual()
+end)
+
+createToggleButton("Fly", 7, function()
+	flyingEnabled = not flyingEnabled
+	if flyingEnabled then
+		startFly()
+	else
+		stopFly()
+	end
+	updateFlyButtonVisual()
+end)
+
+local function OnInputBegan(input, gameProcessedEvent)
+    if input.UserInputType == AIMBOT_CONFIG.AIM_INPUT_TYPE then
+        isHoldingAimKey = true
+    end
+
+    if flyingEnabled then
+		if gameProcessedEvent then return end
+        if input.KeyCode == Enum.KeyCode.W then flyControl.F = -1 end
+        if input.KeyCode == Enum.KeyCode.S then flyControl.B = 1 end
+        if input.KeyCode == Enum.KeyCode.A then flyControl.L = -1 end
+        if input.KeyCode == Enum.KeyCode.D then flyControl.R = 1 end
+        if input.KeyCode == Enum.KeyCode.Space then flyControl.U = 1 end
+        if input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then flyControl.D = -1 end
+    end
+end
+
+local function OnInputEnded(input)
+    if input.UserInputType == AIMBOT_CONFIG.AIM_INPUT_TYPE then
+        isHoldingAimKey = false
+        aimbotTarget = nil
+    end
+
+    if input.KeyCode == Enum.KeyCode.W then flyControl.F = 0 end
+    if input.KeyCode == Enum.KeyCode.S then flyControl.B = 0 end
+    if input.KeyCode == Enum.KeyCode.A then flyControl.L = 0 end
+    if input.KeyCode == Enum.KeyCode.D then flyControl.R = 0 end
+    if input.KeyCode == Enum.KeyCode.Space then flyControl.U = 0 end
+    if input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then flyControl.D = 0 end
+end
+
+local connectionEspRenderStepped = RunService.RenderStepped:Connect(updateESP)
+local connectionAimbotRenderStepped = RunService:BindToRenderStep("AimbotLoop", Enum.RenderPriority.Camera.Value + 1, OnRenderStepAimbot)
+local connectionNoClipStepped = RunService.Stepped:Connect(NoClipSteppedFunction)
+local connectionFlyRenderStepped = RunService.RenderStepped:Connect(FlyRenderSteppedFunction)
+
+local connectionPlayerRemoving = Players.PlayerRemoving:Connect(function(player)
+	clearPlayerDrawings(player)
+	if aimbotTarget and aimbotTarget.Parent and aimbotTarget:IsDescendantOf(player.Character) then
+		aimbotTarget = nil
+	end
+end)
+
+local connectionInputBegan = UserInputService.InputBegan:Connect(OnInputBegan)
+local connectionInputEnded = UserInputService.InputEnded:Connect(OnInputEnded)
+
+print("Combined SCP ESP, Aimbot (Foundation/Enemies - No Dist Limit, LOS), NoClip & Fly Initialized (Executor Ready - Requires API Implementation)")
+print("Hold [Right Mouse Button] to aim (if Foundation Aim or Enemies Aim toggle is ON).")
+print("Use GUI buttons to toggle ESP modes, Aimbot modes, NoClip, and Fly.")
+print("Use [W/A/S/D], [Space], [Shift] to move while Fly is ON.")
+
+updateEspModeButtonVisuals()
+updateAimbotModeButtonVisuals()
+updateNoClipButtonVisual()
+updateFlyButtonVisual()
