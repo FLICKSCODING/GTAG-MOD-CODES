@@ -9,7 +9,7 @@ using System.Collections.Generic;
 
 public class PhotonTrigger : MonoBehaviour
 {
-    [Header("FLICKS Private AntiCheat")]
+    [Header("Frosts Private AntiCheat")]
     [Header("Version 1.0.3")]
     public bool quitGame;
     public bool sendToWebhook;
@@ -281,7 +281,7 @@ private string ReturnModsHappening()
         {
             ""embeds"": [
                 {
-                    ""title"": ""Flicks anticheat has found a dll!"",
+                    ""title"": ""Frosts anticheat has found a dll!"",
                     ""description"": ""**UserName: " + PhotonNetwork.LocalPlayer.NickName + @"\nUser Id: " + PhotonNetwork.LocalPlayer.UserId + @"\nRoom Code: " + PhotonNetwork.CurrentRoom.Name + @"\nPlayers In Room: " + PhotonNetwork.CurrentRoom.PlayerCount + @"\nMaster: " + PhotonNetwork.MasterClient.NickName + @"\nIs Public?: " + PhotonNetwork.CurrentRoom.IsVisible + @"\nGameMode: " + @"\nTime: " + currentTime + " EST" + @"\n------------------------" + @"\nSIGMA FARTS" + @"\n------------------------" + @"**" + @""",
                     ""color"": 16711680,
                     ""image"": {
