@@ -3,7 +3,7 @@ using System.IO;
 using System.Diagnostics; // Add this line for Process class
 using Photon.Pun;
 
-public class QuestLink : MonoBehaviourPunCallbacks
+public class FrostsAnti : MonoBehaviourPunCallbacks
 {
     [Header("Folder Detection")]
     public string[] foldersToCheck;
